@@ -35,33 +35,51 @@ const LoadMoreButton = styled.button(() => ({
 export default function Posts() {
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { isSmallerDevice } = useWindowWidth();
 
   useEffect(() => {
     const fetchPost = async () => {
-      const { data: posts } = await axios.get('/api/v1/posts', {
-        params: { start: 0, limit: isSmallerDevice ? 5 : 10 },
+      const limit = isSmallerDevice ? 5 : 10;
+      const start = (currentPage - 1) * limit;
+      const { data: newPosts } = await axios.get('/api/v1/posts', {
+        params: { start, limit },
       });
-      setPosts(posts);
+      setPosts(prevPosts => [...prevPosts, ...newPosts]);
     };
 
     fetchPost();
-  }, [isSmallerDevice]);
+  }, [isSmallerDevice, currentPage]);
 
-  const handleClick = () => {
+  const handleClick = async () => {
     setIsLoading(true);
 
-    setTimeout(() => {
+    try {
+      const limit = isSmallerDevice ? 5 : 10;
+      const start = currentPage * limit;
+      const { data: newPosts } = await axios.get('/api/v1/posts', {
+        params: { start, limit },
+      });
+
+      if (newPosts.length === 0) {
+        console.log('No more posts to load');
+      } else {
+        setPosts(prevPosts => [...prevPosts, ...newPosts]);
+        setCurrentPage(prevPage => prevPage + 1);
+      }
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+    } finally {
       setIsLoading(false);
-    }, 3000);
+    }
   };
 
   return (
     <Container>
       <PostListContainer>
         {posts.map(post => (
-          <Post post={post} />
+          <Post post={post} key={post.id} />
         ))}
       </PostListContainer>
 
